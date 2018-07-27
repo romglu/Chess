@@ -4,9 +4,12 @@
 
 import copy
 import random
+import sys
 import math
-import fileinput
-import cProfile
+#import pyomd
+import numpy as np
+#import fileinput
+#import cProfile
 
 class Piece():
     def __init__(self, color, pos, board):
@@ -518,135 +521,148 @@ class Board():
         y = square[1]
         if type(square[0]) is int:
             self.squares[8*x+y][2] = piece
-            piece.position = square
-            piece.x = x
-            piece.y = y
+            piece.setPosition(square)
+            piece.setX(x)
+            piece.setY(y)
             self.setPieces()
         
     def removePiece(self, square = (-1,-1)):
-        self.squares[8*square[0]+square[1]][2] = None
-        self.setPieces()
-                
+        if square[0] in range(8) and square[1] in range(8):
+            self.squares[8*square[0]+square[1]][2] = None
+            self.setPieces()
+                    
     def movePiece(self, piece, square, legality=1):
-        a = piece.position
-        clr = piece.getColor()
-        if square not in piece.listMoves(self) and self.turn == 'player':
-            print("Not a possible move. Try again!")
-        elif type(square[0]) is str: #castling
-            x = piece.getX()
-            y = piece.getY()
-            if len(square) == 2:
-                self.removePiece(piece.getPosition())
-                self.addPiece(piece,(x+2,y))
-                rook = self.getPiece((x+3,y))
-                self.removePiece(rook.getPosition())
-                self.addPiece(rook,(x+1,y))
-            else:
-                self.removePiece(piece.getPosition())
-                self.addPiece(piece,(x-2,y))
-                rook = self.getPiece((x-4,y))
-                self.removePiece(rook.getPosition())
-                self.addPiece(rook,(x-1,y))
-        elif len(square) == 3: #promotion
-            msq = (square[0],square[1])
-            print(msq)
-            if not self.isOccupied(msq):
-                #self.movePiece(piece, msq)
-                self.removePiece(msq)
+        if piece is not None:
+            a = piece.position
+            clr = piece.getColor()
+            #if square not in piece.listMoves(self) and self.turn == 'player':
+            #    print("Not a possible move. Try again!")
+            #el
+            if type(square[0]) is str: #castling
+                x = piece.getX()
+                y = piece.getY()
+                if len(square) == 2:
+                    rook = self.getPiece((x+3,y))
+                    if rook is not None:
+                        self.removePiece((x,y))
+                        self.addPiece(piece,(x+2,y))
+                        self.removePiece((x+3,y))
+                        self.addPiece(rook,(x+1,y))
+                else:
+                    rook = self.getPiece((x-4,y))
+                    if rook is not None:
+                        self.removePiece((x,y))
+                        self.addPiece(piece,(x-2,y))
+                        #print("ROOK: ", rook)
+                        self.removePiece((x-4,y))
+                        self.addPiece(rook,(x-1,y))
+            elif len(square) == 3: #promotion
+                msq = (square[0],square[1])
+                #print(msq)
+                if not self.isOccupied(msq):
+                    #self.movePiece(piece, msq)
+                    self.removePiece(msq)
+                    self.removePiece(a)
+                    if square[2] == 'Q':
+                        self.addPiece(Queen(clr, msq ,self),msq)
+                    elif square[2] == 'N':
+                        self.addPiece(Knight(clr, msq ,self),msq)
+                    elif square[2] == 'R':
+                        self.addPiece(Rook(clr, msq ,self),msq)
+                    elif square[2] == 'B':
+                        self.addPiece(Bishop(clr, msq ,self),msq)
+                    if self.isChecked(clr) and legality==1:
+                        self.removePiece(msq)
+                        self.addPiece(piece, a)
+                        if self.turn == 'player':
+                            #print("Moved into check. Try again.")
+                            return Error
+                else:
+                    self.captured.append(self.getPiece(msq))
+                    self.removePiece(msq)
+                    self.removePiece(a)
+                    #self.movePiece(piece, msq)
+                    #self.removePiece(msq)
+                    if square[2] == 'Q':
+                        self.addPiece(Queen(clr, msq, self), msq)
+                    elif square[2] == 'N':
+                        self.addPiece(Knight(clr, msq, self), msq)
+                    elif square[2] == 'R':
+                        self.addPiece(Rook(clr, msq, self), msq)
+                    elif square[2] == 'B':
+                        self.addPiece(Bishop(clr, msq, self), msq)
+                    if self.isChecked(clr) and legality==1:
+                        self.removePiece(msq)
+                        self.addPiece(piece, a)
+                        self.addPiece(self.captured[-1], square)
+                        del self.captured[-1]
+                        if self.turn == 'player':
+                            #print("Captured into check. Try again..")
+                            return Error
+                            
+            elif len(square) == 4: #en passant
+                a = piece.getPosition()
+                msq = (square[0],square[1])
+                if piece.getColor() == 'w':
+                    pawncapt = self.getPiece((msq[0],msq[1]-1))
+                else:
+                    pawncapt = self.getPiece((msq[0],msq[1]+1))
+                loc = pawncapt.getPosition()
+                self.captured.append(pawncapt)
+                self.removePiece(loc)
                 self.removePiece(a)
-                if square[2] == 'Q':
-                    self.addPiece(Queen(clr, msq ,self),msq)
-                elif square[2] == 'N':
-                    self.addPiece(Knight(clr, msq ,self),msq)
-                elif square[2] == 'R':
-                    self.addPiece(Rook(clr, msq ,self),msq)
-                elif square[2] == 'B':
-                    self.addPiece(Bishop(clr, msq ,self),msq)
-                if self.isChecked(clr) and legality==1:
+                self.addPiece(piece, msq)
+                if self.isChecked(clr):
                     self.removePiece(msq)
                     self.addPiece(piece, a)
-                    if self.turn == 'player':
-                        print("Moved into check. Try again.")
-                        return Error
-            else:
-                self.captured.append(self.getPiece(msq))
-                self.removePiece(msq)
-                self.removePiece(a)
-                #self.movePiece(piece, msq)
-                #self.removePiece(msq)
-                if square[2] == 'Q':
-                    self.addPiece(Queen(clr, msq, self), msq)
-                elif square[2] == 'N':
-                    self.addPiece(Knight(clr, msq, self), msq)
-                elif square[2] == 'R':
-                    self.addPiece(Rook(clr, msq, self), msq)
-                elif square[2] == 'B':
-                    self.addPiece(Bishop(clr, msq, self), msq)
-                if self.isChecked(clr) and legality==1:
-                    self.removePiece(msq)
-                    self.addPiece(piece, a)
-                    self.addPiece(self.captured[-1], square)
+                    self.addPiece(self.captured[-1], loc)
                     del self.captured[-1]
                     if self.turn == 'player':
-                        print("Captured into check. Try again..")
+                        #print("En passanted into check. Try again..")
                         return Error
+            else:
+                if not self.isOccupied(square):
+                    self.removePiece(a)
+                    self.addPiece(piece, square)
+                    if self.isChecked(clr) and legality == 1:
+                        self.removePiece(square)
+                        self.addPiece(piece, a)
+                        if self.turn == 'player':
+                            #print("Moved into check. Try again.")
+                            return Error
+                    else:
+                        piece.position = square
+                        piece.x = square[0]
+                        piece.y = square[1]
+                else:
+                    self.captured.append(self.getPiece(square))
+                    self.removePiece(square)
+                    self.removePiece(piece.getPosition())
+                    self.addPiece(piece, square)
+                    if self.isChecked(clr) and legality == 1:
+                        self.removePiece(square)
+                        self.addPiece(piece, a)
+                        self.addPiece(self.captured[-1], square)
+                        del self.captured[-1]
+                        if self.turn == 'player':
+                            #print("Captured into check. Try again..")
+                            return Error
+                    else:
+                        piece.setPosition(square)
+                        piece.setX(square[0])
+                        piece.setY(square[1])
                         
-        elif len(square) == 4: #en passant
-            a = piece.getPosition()
-            msq = (square[0],square[1])
-            if piece.getColor() == 'w':
-                pawncapt = self.getPiece((msq[0],msq[1]-1))
-            else:
-                pawncapt = self.getPiece((msq[0],msq[1]+1))
-            loc = pawncapt.getPosition()
-            self.captured.append(pawncapt)
-            self.removePiece(loc)
-            self.removePiece(a)
-            self.addPiece(piece, msq)
-            if self.isChecked(clr):
-                self.removePiece(msq)
-                self.addPiece(piece, a)
-                self.addPiece(self.captured[-1], loc)
-                del self.captured[-1]
-                if self.turn == 'player':
-                    print("En passanted into check. Try again..")
-                    return Error
-        else:
-            if not self.isOccupied(square):
-                self.removePiece(a)
-                self.addPiece(piece, square)
-                if self.isChecked(clr) and legality == 1:
-                    self.removePiece(square)
-                    self.addPiece(piece, a)
-                    if self.turn == 'player':
-                        print("Moved into check. Try again.")
-                        return Error
-                else:
-                    piece.position = square
-                    piece.x = square[0]
-                    piece.y = square[1]
-            else:
-                self.captured.append(self.getPiece(square))
-                self.removePiece(square)
-                self.removePiece(piece.getPosition())
-                self.addPiece(piece, square)
-                if self.isChecked(clr) and legality == 1:
-                    self.removePiece(square)
-                    self.addPiece(piece, a)
-                    self.addPiece(self.captured[-1], square)
-                    del self.captured[-1]
-                    if self.turn == 'player':
-                        print("Captured into check. Try again..")
-                        return Error
-                else:
-                    piece.setPosition(square)
-                    piece.setX(square[0])
-                    piece.setY(square[1])
+    def createBoard(self,pieces):
+        self.clearBoard()
+        for i in pieces:
+            if i.getPosition() is not None:
+                self.addPiece(i,i.getPosition())
+        self.setPieces()
 
     def checkMove(self, piece, square):
         a = piece.getPosition()
         if square not in piece.listMoves(self) and self.turn == 'player':
-            print("Check - Not a possible move. Try again!")
+            #print("Check - Not a possible move. Try again!")
             return False
         elif type(square[0]) is str: #castles
             pass
@@ -657,8 +673,8 @@ class Board():
                 if self.isChecked(piece.getColor()):
                     self.removePiece(square)
                     self.addPiece(piece, a)
-                    if self.turn == 'player':
-                        print("Check - Moved into check. Try again.")
+                    #if self.turn == 'player':
+                    #    print("Check - Moved into check. Try again.")
                     return False
                 self.removePiece(square)
                 self.addPiece(piece, a)
@@ -673,8 +689,8 @@ class Board():
                     self.addPiece(piece, a)
                     self.addPiece(self.captured[-1], square)
                     del self.captured[-1]
-                    if self.turn == 'player':
-                        print("Check - Captured into check. Try again..")
+                    #if self.turn == 'player':
+                    #    print("Check - Captured into check. Try again..")
                     return False
                 self.removePiece(square)
                 self.addPiece(piece, a)
@@ -686,13 +702,13 @@ class Board():
         
     def isOccupied(self, pos):
         #print(self.squares[8*pos[0]+pos[1]][2])
-        #try:
-        if type(pos[1]) is int and self.squares[8*pos[0]+pos[1]][2] == None:
-            return False
-        else:
-            return True
-        #except IndexError:
-        #    pass
+        try:
+            if type(pos[1]) is int and self.squares[8*pos[0]+pos[1]][2] == None:
+                return False
+            else:
+                return True
+        except IndexError:
+            pass
             
     def findKing(self,color):
         for piece in self.pieces:
@@ -710,8 +726,8 @@ class Board():
         return False
 
     def isCheckmated(self, color):
-        if self.isChecked(color):
-            if len(self.getAllMoves(color)) == 0:
+        if len(self.getAllMoves(color)) == 0:
+            if self.isChecked(color):
                 return True
         return False
                 
@@ -772,7 +788,7 @@ class Board():
             count += (piece.getColor() == color and self.isAttacked(piece.getPosition(),color)) #if True, adds 1, else adds 0
             #if piece.getColor() == color and self.isAttacked(piece.getPosition(),color):
             #    count += 1
-        print(count)
+        #print(count)
         return count
     
     def getPiece(self, pos):
@@ -816,28 +832,18 @@ class Board():
             ocolor = 'b'
         else:
             ocolor = 'w'
-
-        mv = self.getAllMoves(color)
+        c = copy.deepcopy(self)
+        mv = c.getAllMoves(color)
         for i in mv:
-            pc = i[0]
-            sq = i[1]
-            l = pc.getPosition()
-            occ = False
-            if self.isOccupied(sq):
-                occ = True
-                p = self.getPiece(sq)
-            self.movePiece(pc,sq)
-            if self.isCheckmated(ocolor):
-                print((pc, sq))
-                self.movePiece(pc, l,0)
-                if occ:
-                    self.addPiece(p, sq)
+            #print(i)
+            c.movePiece(i[0],i[1])
+            if c.isCheckmated(ocolor):
+                #print(self.pieces)
+                #print((i[0], i[1]))
+                c = copy.deepcopy(self)
                 return True
-            self.movePiece(pc, l,0)
-
-            if occ:
-                self.addPiece(p, sq)
-                #occ = False
+            c = copy.deepcopy(self)
+        
         return False
 
     def clearBoard(self):
@@ -846,7 +852,7 @@ class Board():
         self.setPieces()
              
 class Game():
-    def __init__(self):
+    def __init__(self, color = 'w'):
         self.board = Board()
         self.cboard = Board()
         self.pcolor = 'w'
@@ -857,13 +863,13 @@ class Game():
         self.cdir = -1
         self.turn = 'w'
         self.movenum = 1
-        self.lastpawntwo = []
+        self.lastpawntwo = None
         self.wait = 0 #gets rid of lastpawntwo after one move
         self.notation = []
         #self.notation = ['pe3','pd5','d4','ph5','bd3','bg4','qd2','nf6','nc3','nc6','bb5','qd6','pg3','o-o-o','ph4','pe5','pe5','ne5','pf4','ng6','pb3','pa6','bf1','pd4','na4','ne4']
-        self.play()
+        self.play(color)
 
-    def play(self):
+    def play(self, color = 'w'):
         self.pcolor = str(input('Choose a color (w or b): ')).lower()
         if self.pcolor == 'b':
             self.ccolor = 'w'
@@ -877,42 +883,48 @@ class Game():
         while True:
             #game = ['Pee3', 'pe5', 'bb5', 'nc6', 'bf1', 'nf6', 'bb5', 'bc5', 'Bc4', 'ne4', 'pd4', 'ped4', 'ped4', 'nd4', 'bd5', 'qe7', 'kf1', 'qe5', 'Bc4', 'pg6', 'qg4', 'nc2', 'qe2', 'na1','bch6','rb8']
             #game2 = ['pe3','pe5','pg3','nc6','nc3','nf6','bc4','pd5','bb5','bd7','nf3','pe4','ng5','ph6','oo','bg4', 'qe2','be2','be2','pd4','na4','pde3','pde3','qd5','nh3','o-o-o','nf4','qa5','pb3','nb4','pa3','nc2', 'rb1','pg5','nb2','ba3','nc4','qc5','ba3','na3','ra1','nc2','ra2','nb4','raa1','pgf4','pef4','nc2','ra2','nb4','raa1','nc2','ra4','pb5','ra6','nd5','nb2','pe3','pfe3','nde3','pf5','nf1','kf1','qf5','kg1','qc5','kg2','rd2','pg4','re2','kg3','qe3','kh4','qg5','kh3','rhe8','nd1','ph5','pgh5','qh5','kg3','rg8']
-            #game3 = ['pe4', 'Pee6', 'pd4', 'Bfb4', 'nc3', 'Bbc3', 'pbc3', 'Nbc6', 'nf3', 'Ngf6', 'rg1', 'Rhg8', 'bd3', 'Nfg4', 'bf4', 'Ncb8', 'bb5', 'Pcc6', 'bc4', 'Pdd5', 'ped5', 'Nbd7', 'pde6', 'Ndf8', 'pef7', 'Kee7']
-            #for i in game3:
-            #    self.move(i)
-            #    self.lastsquares = self.board.getSquares()
-            #    print(self.board.pieces)
-            #    print(self.notation)
-            
+            '''game3 = ['pb4', 'Pee6', 'bb2', 'Bfb4', 'bg7', 'Nbc6', 'bh8', 'Qdg5', 'pe4', 'Bbf8', 'nf3', 'Qga5', 'bc3', 'Qac5', 'pd4', 'Qch5', 'nbd2', 'Bfa3', 'nc4', 'Baf8', 'nce5', 'Nce5', 'ne5', 'Qhg5', 'bd2', 'Qgh4', 'qf3']
+            for i in game3:
+                self.move(i)
+                self.lastsquares = self.board.getSquares()
+                print(self.board.pieces)
+                print(self.notation)'''
+            print(self.notation)
             if self.turn == self.pcolor:
                 try:
                     m = str(input('Enter a move (i.e. ph4): '))
                     self.move(m)
-                    #self.randomMove()
+                    #m = self.randomMove()
                 except Exception:
-                    m = str(input('Illegal Move. Try again. (i.e. ph4): '))
-                    self.move(m)
+                    #m = str(input('Illegal Move. Try again. (i.e. ph4): '))
+                    #self.move(m)
+                    return Error
 
                 if m != "undo":
                 #random -- if True:
                     self.lastsquares = self.board.getSquares()
                     if self.board.isCheckmated(self.ccolor):
                         print("Good game! You win!")
-                        return "done"
-                    if len(self.board.getAllMoves(self.ccolor)) == 0:
+                        print("Length of game: ", len(self.notation)//2)
+                        return [self.notation, 0]
+                    if len(self.board.getAllMoves(self.ccolor)) == 0 or len(self.notation) > 500:
                         print("Good game! It was a draw!")
-                        return "done"
+                        print("Length of game: ", len(self.notation)//2)
+                        return [self.notation, 0.5]
             else:
-                self.computerMove()
+                #self.alphabeta(self.board, 3, -sys.maxsize, sys.maxsize)
+                self.alphabeta(self.board,3,-sys.maxsize,sys.maxsize)
                 if self.board.isCheckmated(self.pcolor):
                     print("Good game! I win!")
-                    return "done"
-                if len(self.board.getAllMoves(self.pcolor)) == 0:
-                    print("Good game! It was a draw!")
-                    return "done"
+                    print("Length of game: ", len(self.notation)//2)
 
-            print(self.board.pieces)
-            print(self.notation)
+                    return [self.notation, 1]
+                if len(self.board.getAllMoves(self.pcolor)) == 0 or len(self.notation) > 500:
+                    print("Good game! It was a draw!")
+                    print("Length of game: ", len(self.notation)//2)                    
+                    return [self.notation, 0.5]
+
+            #print(self.notation)
 
     def setPosition(self,notation = []):
         self.notation = notation
@@ -935,25 +947,25 @@ class Game():
             k = self.notation
             self.notation = []
             for j in k:
-                print(j)
+                #print(j)
                 self.move(j)
         else:
             if i is not None:
                 #checking en passant possibility
-                if len(self.lastpawntwo) > 0:
+                '''if len(self.lastpawntwo) > 0:
                     if self.wait % 2 == 1: 
                         del self.lastpawntwo[-1]
                         self.board.setLastMovesTwo(self.turn)
                         self.cboard.setLastMovesTwo(self.turn)
-                    self.wait += 1
-                if type(pc) is Pawn: 
-                    if self.turn == self.ccolor:
-                        if sq == (pc.x, pc.y + 2*self.cdir):
-                            pc.lastmovedtwo = 1
-                            self.lastpawntwo.append(pc)
-                    elif sq == (pc.x, pc.y - 2*self.cdir):
-                        pc.lastmovedtwo = 1
-                        self.lastpawntwo.append(pc)
+                    self.wait += 1'''
+                    
+                if (type(pc) is Pawn) and (((self.turn == self.ccolor) and (sq == (pc.x,pc.y+2*self.cdir))) or ((self.turn == self.pcolor) and (sq == (pc.x,pc.y-2*self.cdir)))):
+                    pc.lastmovedtwo = 1
+                    self.lastpawntwo = pc
+                else:
+                    self.lastpawntwo = None
+                    self.board.setLastMovesTwo(self.turn)
+                    self.cboard.setLastMovesTwo(self.turn)
 
                 self.board.movePiece(pc,sq)
                 #self.cboard.movePiece(pc,sq)
@@ -1009,9 +1021,9 @@ class Game():
                 elif len(notation) == 4:
                     for i in self.board.pieces:
                         if i.getColor() == self.turn and notation[0].upper() == i.getNotation() and sq2 in i.listMoves(self.board):
-                            if (chr(i.getX()+97) == notation[1] or i.getY() + 1 == ord(notation[1])-48):
-                                piece = i
-                                break
+                                if (chr(i.getX()+97) == notation[1] or i.getY() + 1 == ord(notation[1])-48):
+                                    piece = i
+                                    break
                     square = self.convertPostoSq(notation[-2:])
                     
                 #en passant
@@ -1023,7 +1035,7 @@ class Game():
                                 if len(j) == 4:
                                     piece = i
                                     square = j
-                                    print(square)
+                                    #print(square)
                                     done = True
                                     break
                         if done == True:
@@ -1037,34 +1049,43 @@ class Game():
                             piece = i
                             break
                     square = sq3 + (notation[-1],)
-                    
-                #castling
-                elif notation.upper() == 'OO':
-                    piece = self.board.findKing(self.turn)
-                    square = ('O','O')
-                elif notation.upper() == 'O-O-O':
-                    piece = self.board.findKing(self.turn)
-                    square = ('O','O','O')
+                else:
+                    if notation.upper() == 'OO':
+                        return (self.board.findKing(self.turn),('O','O'))
+                    elif notation.upper() == 'O-O-O':
+                        return (self.board.findKing(self.turn),('O','O','O'))
 
                 #print((piece,square))
                 return (piece, square)
             else:
-                return notation
+                #castling
+                if notation[1].upper() == 'OO':
+                    piece = notation[0]
+                    square = ('O','O')
+                    return (piece, square)
+                elif notation[1].upper() == 'O-O-O':
+                    piece = notation[0]
+                    square = ('O','O','O')
+                    return (piece, square)
+                else:
+                    return notation
 
     def getScore(self, board, color, score = 0):
-        diff = self.cboard.points(self.ccolor) - self.cboard.points(self.pcolor)
+        b = copy.deepcopy(board)
+        diff = b.points(self.ccolor) - b.points(self.pcolor)
         #defdiff = self.cboard.numPiecesDefended(self.ccolor) - self.cboard.numPiecesDefended(self.pcolor)
-        if diff > 5:
-            allc = 9/diff
-        else:
-            allc = len(self.cboard.getAllMoves(self.ccolor))
-        
-        if self.cboard.isChecked(self.pcolor):
-            allp = allc - diff - 1
-        else:
-            allp = len(self.cboard.getAllMoves(self.pcolor))
+        allc = len(b.getAllMoves(self.ccolor))
+        allp = len(b.getAllMoves(self.pcolor))
                  #point difference + c*(move difference) 
-        score += diff + 0.2*(allc - allp)
+        score += diff + 0.01*(allc - allp)
+        
+        playercmed = b.isCheckmated(self.pcolor)
+        numpmoves = len(b.getAllMoves(self.pcolor))
+        if numpmoves == 0:
+            if playercmed:
+                score += 1000 #checkmate wins
+            else:
+                score = 0 #stalemate draws
         #1.06*diff + (0.20 * ((39+2*diff)/39) * ((((78-diff)/78)*allc)-1.11*(((78+1.5*diff)/78)*allp)))
 
         #+ .02*defdiff
@@ -1073,133 +1094,107 @@ class Game():
         #(0.20 * ((1/39)*(39-diff)*(allc-allp))) + diff
 
         return score
+                
+    def alphabeta(self,board,depth,alpha,beta):
+        self.cboard = copy.copy(self.board)
+        move = self.alphamaxi(self.cboard,depth,alpha,beta)[0]
+        bestpiece = move[0]
+        bestsquare = move[1]
+        if type(bestsquare[0]) is not str:
+            if len(bestsquare) == 2:
+                x = bestpiece.getNotation()+self.convertSqtoPos(bestpiece.getPosition())[0] + self.convertSqtoPos(bestsquare)
+                #print(bestpiece,x)
+                self.move(x)
+            elif len(bestsquare) == 3:
+                #print("promotion: ", bestpiece.getNotation()) 
+                y = bestpiece.getNotation()+self.convertSqtoPos(bestsquare[0:2])+"="+bestsquare[2]
+                #print(bestpiece,y)
+                self.move(y)
+        elif len(bestsquare) == 4:
+            #print('ep')
+            self.move('ep')
+        else:
+            #print(bestsquare)
+            if bestsquare == ('O','O'):
+                self.move((bestpiece,'OO'))
+            else:
+                self.move((bestpiece,'O-O-O'))
 
-    def computerMove(self):
-        m = [-2000, None, (-1, -1)]
+    def alphamaxi(self,board,depth,alpha,beta,move=None):
+        if depth == 0:
+            return self.getScore(board,self.ccolor)
         occ = False
-        p = None
-        self.cboard = copy.deepcopy(self.board)
-        mv = self.board.getAllMoves(self.ccolor)
-        for i in mv: # (piece, square)
-            
-            #------------- BEFORE MOVE -----------------
-            score = 0
+        for i in board.getAllMoves(self.ccolor):
             piece = i[0]
             square = i[1]
-            l = piece.getPosition()
-            #distance from King
-            if type(piece) is not King:
-                ydist = abs(square[1] - self.cboard.findKing(self.ccolor).y)
-                if type(piece) is not Pawn:
-                    score -= (piece.value**.15) * (ydist/(len(self.notation)+5))
-                if self.cboard.isAttacked(l, self.pcolor):
-                    score += 0.75 * piece.value
-                    if self.cboard.isAttacked(l, self.ccolor):
-                        score -= 0.40 * piece.value
-                elif self.cboard.isAttacked(l, self.ccolor):
-                    score -= 0.20 * piece.value
-                #blocking center pawns is bad
-                if (2 < square[0] < 5) and (type(self.cboard.getPiece((square[0],square[1]-self.cdir))) is Pawn) and (type(piece) is not Pawn):
-                    score -= 1.0
-            else:
-                ydist = 0
-                #if self.cboard.isChecked(self.ccolor):
-                if self.cboard.isAttacked(l, self.pcolor):
-                    score -= 0.70
-                if type(square[0]) is str:
-                    score += 1.9
-                else:
-                    score -= 0.4
-                    
+            l = piece.getPosition()           
+            #arr[0] = (piece, square)    
             #get a record of piece to be "captured"
             if self.cboard.isOccupied(square):
                 occ = True
                 p = self.cboard.getPiece(square)
-              
-            '''self.cboard.movePiece(i[0],i[1])
-            self.cboard.setPieces()
-            score += self.getScore(self.cboard, self.ccolor)
             
-            #------------- AFTER MOVE -----------------'''
-            
-            #if self.cboard.findKing(self.ccolor).hasmoved == 0 and self.cboard.isAttacked((2,self.cside+self.cdir),self.pcolor):
-            #    score -= 1.35
-                
-            if len(self.notation) < 20: #develop minor pieces in opening
-                if 1 < piece.value < 5:
-                    score += piece.value * .4
-                else:
-                    score -= 0.3
-
             self.cboard.movePiece(piece,square)
-            #------------AFTER MOVE------------------------------
-            score += self.getScore(self.cboard, self.ccolor)
-
-            #checks if square is defended by another piece            
-            if type(piece) is not King:
-                if self.cboard.isAttacked(square, self.pcolor):
-                    score -= 1.1*piece.value
-                    if self.cboard.isAttacked(square, self.ccolor):
-                        score += .77 / piece.value
-                elif self.cboard.isAttacked(square, self.ccolor):
-                    score += piece.value * .0625
-
-            playercmed = self.cboard.isCheckmated(self.pcolor)
-            numpmoves = len(self.cboard.getAllMoves(self.pcolor))
-            if numpmoves == 0:
-                if playercmed:
-                    score += 1000 #checkmate wins
-                else:
-                    score = 0 #stalemate draws
-
-            cpy = copy.deepcopy(self.cboard)
-            if self.cboard.isThreateningCheckmate(self.pcolor):
-                score -= 1000
-            self.cboard = cpy #otherwise iTC causes problems, changes score for other moves
+            
+            a = self.alphamini(board,depth-1,alpha,beta,move)
+            if type(a) is tuple:
+                score = a[1]
+            else:
+                score = a
             
             self.cboard.movePiece(piece, l,0)
             
-            if occ == True:
+            if occ:
                 self.cboard.addPiece(p, square)
                 occ = False
-
-            #----- AFTER RESETTING MOVE ----------
-                                
-            if score > m[0] + 0.16:
-                m = [score, piece,square]
-                if score > 900: #checkmate 
-                    print(l, square, score)
-                    break
-            elif score > m[0] - 0.13:
-                r = random.randint(0,1)
-                if r == 0:
-                    m = [max(m[0],score), piece,square]
                 
-            print(l, square, score)
+            if score >= beta:
+                #j = (piece,square)
+                return [(piece,square),beta]          
+                
+            if score > alpha:
+                alpha = score
+                move = (piece,square)
+                
+        return [move,score]
+                
+    def alphamini(self,board,depth,alpha,beta,move=None):
+        if depth == 0:
+            return self.getScore(board,self.pcolor)
+        occ = False
+        for i in board.getAllMoves(self.pcolor):
+            piece = i[0]
+            square = i[1]
+            l = piece.getPosition()
+            #arr[0] = (piece, square)
+                
+            #get a record of piece to be "captured"
+            if self.cboard.isOccupied(square):
+                occ = True
+                p = self.cboard.getPiece(square)
             
-        # ------- AFTER SELECTING "BEST" MOVE ------------
-        bestpiece = m[1]
-        bestsquare = m[2]
-        if type(bestsquare[0]) is not str:
-            if len(bestsquare) == 2:
-                x = bestpiece.getNotation()+self.convertSqtoPos(bestpiece.getPosition())[0] + self.convertSqtoPos(bestsquare)
-                print(bestpiece,x)
-                self.move(x)
-            elif len(bestsquare) == 3:
-                print("promotion: ", bestpiece.getNotation()) 
-                y = bestpiece.getNotation()+self.convertSqtoPos(bestsquare[0:2])+"="+bestsquare[2]
-                print(bestpiece,y)
-                self.move(y)
-        elif len(bestsquare) == 4:
-            print('ep')
-            self.move('ep')
-        else:
-            print(bestsquare)
-            if bestsquare == ('O','O'):
-                self.move('OO')
+            self.cboard.movePiece(piece,square)
+            
+            a = self.alphamaxi(board,depth-1,alpha,beta,move)
+            if type(a)  in [tuple, list]:
+                score = a[1]
             else:
-                self.move('O-O-O')
-
+                score = a
+            
+            self.cboard.movePiece(piece, l,0)
+            
+            if occ:
+                self.cboard.addPiece(p, square)
+                occ = False
+                
+            if score <= alpha:
+                return alpha
+                
+            if score < beta:
+                beta = score
+                
+        return beta
+            
     def randomMove(self):
         if self.pcolor == 'b':
             self.ccolor = 'w'
@@ -1207,12 +1202,32 @@ class Game():
             self.pside = 0
             self.cdir = 1
             self.board.setTurn('computer')
+        allMoves = self.board.getAllMoves(self.pcolor)
+        num = len(allMoves)
+        mv = allMoves[random.randint(0,num-1)]
+        bestpiece = mv[0]
+        bestsquare = mv[1]
 
-        num = len(self.board.getAllMoves(self.pcolor))
-        self.move(self.board.getAllMoves(self.pcolor)[random.randint(0,num-1)])
-    
+        if type(bestsquare[0]) is not str:
+            if len(bestsquare) == 2:
+                x = bestpiece.getNotation()+self.convertSqtoPos(bestpiece.getPosition())[0] + self.convertSqtoPos(bestsquare)
+                #print(bestpiece,x)
+                self.move(x)
+            elif len(bestsquare) == 3:
+                #print("promotion: ", bestpiece.getNotation()) 
+                y = bestpiece.getNotation()+self.convertSqtoPos(bestsquare[0:2])+"="+bestsquare[2]
+                #print(bestpiece,y)
+                self.move(y)
+        elif len(bestsquare) == 4:
+            #print('ep')
+            self.move('ep')
+        else:
+            #print(bestsquare)
+            if bestsquare == ('O','O'):
+                self.move((bestpiece,'OO'))
+            else:
+                self.move((bestpiece,'O-O-O'))
+        
     def getCColor(self):
         return self.ccolor
                     
-#cProfile.run('Game()')
-Game()
