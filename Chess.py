@@ -1,12 +1,11 @@
 # TO PLAY: type "Game()" and follow directions
 # for notation, use P,N,B,R,Q,K followed by square, i.e. "Pe4", "Rd5", even if capture
-# en passant: "e.p.", castle: "oo", "o-o-o", promotion: "Pe8=Q", do NOT notate check/mate with + and #
+# en passant: "ep", castle: "oo", "o-o-o", promotion: "Pe8=Q", do NOT notate check/mate with + and #
 
 import copy
 import random
 import math
 import fileinput
-import cProfile
 
 class Piece():
     def __init__(self, color, pos, board):
@@ -59,9 +58,9 @@ class Pawn(Piece):
 
     def __repr__(self):
         if self.color == 'w':
-            return "White Pawn" + chr(self.x+97)+str(self.y+1)
+            return "White Pawn " + chr(self.x+97)+str(self.y+1)
         elif self.color == 'b':
-            return "Black Pawn" + chr(self.x+97)+str(self.y+1)
+            return "Black Pawn " + chr(self.x+97)+str(self.y+1)
     
     def listMoves(self, board):
         moves = []
@@ -97,11 +96,11 @@ class Pawn(Piece):
                     moves.append((x+1,y+1)) #possibly a problem
                 #en passant  
                 if y == 4:
-                    if board.isOccupied((x-1,y)): 
+                    if x>0 and board.isOccupied((x-1,y)): 
                         i1 = board.getPiece((x-1,y))
                         if type(i1) is Pawn and i1.lastmovedtwo == 1:
                             moves.append((x-1,y+1,'e','p'))
-                    elif board.isOccupied((x+1, y)):
+                    elif x<7 and board.isOccupied((x+1,y)):
                         i2 = board.getPiece((x+1,y))
                         if type(i2) is Pawn and i2.lastmovedtwo == 1:
                             moves.append((x+1,y+1,'e','p'))
@@ -136,11 +135,11 @@ class Pawn(Piece):
                     moves.append((x+1,y-1))
                 #en passant
                 if y == 3:
-                    if board.isOccupied((x-1,y)): 
+                    if x>0 and board.isOccupied((x-1,y)): 
                         i1 = board.getPiece((x-1,y))
                         if type(i1) is Pawn and i1.lastmovedtwo == 1:
                             moves.append((x-1,y-1,'e','p'))
-                    elif board.isOccupied((x+1,y)):
+                    elif x<7 and board.isOccupied((x+1,y)):
                         i2 = board.getPiece((x+1,y))
                         if type(i2) is Pawn and i2.lastmovedtwo == 1:
                             moves.append((x+1,y-1,'e','p'))  
@@ -156,9 +155,9 @@ class Knight(Piece):
 
     def __repr__(self):
         if self.color == 'w':
-            return "White Knight" + chr(self.x+97)+str(self.y+1)
+            return "White Knight " + chr(self.x+97)+str(self.y+1)
         else:
-            return "Black Knight" + chr(self.x+97)+str(self.y+1)
+            return "Black Knight " + chr(self.x+97)+str(self.y+1)
     
     def listMoves(self, board):
         i = 0
@@ -190,9 +189,9 @@ class Bishop(Piece):
 
     def __repr__(self):
         if self.color == 'w':
-            return "White Bishop" + chr(self.x+97)+str(self.y+1)
+            return "White Bishop " + chr(self.x+97)+str(self.y+1)
         else:
-            return "Black Bishop" + chr(self.x+97)+str(self.y+1)
+            return "Black Bishop " + chr(self.x+97)+str(self.y+1)
     
     def listMoves(self, board):
         moves = []
@@ -246,9 +245,9 @@ class Rook(Piece):
 
     def __repr__(self):
         if self.color == 'w':
-            return "White Rook" + chr(self.x+97)+str(self.y+1)
+            return "White Rook " + chr(self.x+97)+str(self.y+1)
         else:
-            return "Black Rook" + chr(self.x+97)+str(self.y+1)
+            return "Black Rook " + chr(self.x+97)+str(self.y+1)
     
     def listMoves(self, board):
         moves = []
@@ -305,9 +304,9 @@ class Queen(Piece):
 
     def __repr__(self):
         if self.color == 'w':
-            return "White Queen" + chr(self.x+97)+str(self.y+1)
+            return "White Queen " + chr(self.x+97)+str(self.y+1)
         else:
-            return "Black Queen" + chr(self.x+97)+str(self.y+1)
+            return "Black Queen " + chr(self.x+97)+str(self.y+1)
     
     def listMoves(self, board):
         moves = []
@@ -351,7 +350,6 @@ class Queen(Piece):
             else:
                 moves.append((x,y+i))
                 i += 1
-
         #bishop moves
         i = 1
         while 0 <= x - i <= 7 and 0 <= y - i <= 7:
@@ -402,9 +400,9 @@ class King(Piece):
 
     def __repr__(self):
         if self.color == 'w':
-            return "White King" + chr(self.x+97)+str(self.y+1)
+            return "White King " + chr(self.x+97)+str(self.y+1)
         else:
-            return "Black King" + chr(self.x+97)+str(self.y+1)
+            return "Black King " + chr(self.x+97)+str(self.y+1)
     
     def listMoves(self, board):
         i = 0
@@ -431,7 +429,7 @@ class King(Piece):
                 moves.remove(mv)
                 i -= 1
             i += 1
-        
+            
         if self.hasmoved == 0 and not self.board.isAttacked(self.position,ocolor): #castling
             if type(board.getPiece((x+3,y))) is Rook and board.getPiece((x+3,y)).hasmoved == 0:
                 if (not board.isOccupied((x+1, y))) and (not board.isOccupied((x+2, y))):
@@ -440,8 +438,7 @@ class King(Piece):
             if type(board.getPiece((x-4,y))) is Rook and board.getPiece((x-4,y)).hasmoved == 0:                                                               
                 if (not board.isOccupied((x-1, y))) and (not board.isOccupied((x-2, y))) and (not board.isOccupied((x-3, y))):
                     if (not board.isAttacked((x-1, y), ocolor)) and (not board.isAttacked((x-2, y), ocolor)) and (not board.isAttacked((x-3, y), ocolor)):
-                        moves.append(('O','O','O'))
-                                                                           
+                        moves.append(('O','O','O'))                                                                     
         return moves
 
     def hasMoved(self, board):
@@ -500,10 +497,9 @@ class Board():
     def setPieces(self):
         self.pieces = []
         for sq in self.squares:
-            #if sq[2] is not None:
             if isinstance(sq[2],Piece):
                 if type(sq) is King:
-                    self.pieces.insert(0,sq[2]) #to make findKing() a lot faster
+                    self.pieces.insert(0,sq[2]) #to make findKing() faster
                 else:
                     self.pieces.append(sq[2])
 
@@ -551,7 +547,6 @@ class Board():
             msq = (square[0],square[1])
             print(msq)
             if not self.isOccupied(msq):
-                #self.movePiece(piece, msq)
                 self.removePiece(msq)
                 self.removePiece(a)
                 if square[2] == 'Q':
@@ -572,8 +567,6 @@ class Board():
                 self.captured.append(self.getPiece(msq))
                 self.removePiece(msq)
                 self.removePiece(a)
-                #self.movePiece(piece, msq)
-                #self.removePiece(msq)
                 if square[2] == 'Q':
                     self.addPiece(Queen(clr, msq, self), msq)
                 elif square[2] == 'N':
@@ -685,15 +678,11 @@ class Board():
         return True                                 
         
     def isOccupied(self, pos):
-        #print(self.squares[8*pos[0]+pos[1]][2])
-        #try:
         if type(pos[1]) is int and self.squares[8*pos[0]+pos[1]][2] == None:
             return False
         else:
             return True
-        #except IndexError:
-        #    pass
-            
+
     def findKing(self,color):
         for piece in self.pieces:
             if type(piece) is King and piece.getColor() == color:
@@ -716,16 +705,6 @@ class Board():
         return False
                 
     def isAttacked(self, square, color, notpiece = Piece('g',(-1,-1),1)): #pc for defended
-        #for piece in self.pieces:
-        #    if (piece.getColor() == color) and (piece is not notpiece):
-        #        if type(piece) is King and type(square[0]) is int:
-        #            if abs(piece.x - square[0]) < 2 and abs(piece.y - square[1]) < 2:
-        #                return True
-        #        else:
-        #            for move in piece.listMoves(self):
-        #                if move == square:
-        #                    return True
-        #return False
         removed = False
         if self.isOccupied(square):
             self.captured.append(self.getPiece(square))
@@ -770,8 +749,6 @@ class Board():
         count = 0
         for piece in self.pieces:
             count += (piece.getColor() == color and self.isAttacked(piece.getPosition(),color)) #if True, adds 1, else adds 0
-            #if piece.getColor() == color and self.isAttacked(piece.getPosition(),color):
-            #    count += 1
         print(count)
         return count
     
@@ -837,7 +814,7 @@ class Board():
 
             if occ:
                 self.addPiece(p, sq)
-                #occ = False
+                
         return False
 
     def clearBoard(self):
@@ -911,7 +888,7 @@ class Game():
                     print("Good game! It was a draw!")
                     return "done"
 
-            print(self.board.pieces)
+            #print(self.board.pieces)
             print(self.notation)
 
     def setPosition(self,notation = []):
@@ -956,20 +933,12 @@ class Game():
                         self.lastpawntwo.append(pc)
 
                 self.board.movePiece(pc,sq)
-                #self.cboard.movePiece(pc,sq)
                 
                 if type(pc) is King or type(pc) is Rook:
                    pc.hasmoved = 1
 
                 self.notation.append(notation)
-                #if i[1] == ('O','O') or i[1] == ('O','O','O'):
-                #   if len(i[1]) == 2:
-                #       self.notation.append("OO")
-                #   else:
-                #        self.notation.append("O-O-O")
-                #else:
-                #    self.notation.append(i[0].getNotation()+chr(i[1][0]+97)+str(i[1][1]+1))
-            
+                
                 if self.turn == self.ccolor:
                     self.turn = self.pcolor
                     self.board.setTurn('player')
@@ -1045,8 +1014,6 @@ class Game():
                 elif notation.upper() == 'O-O-O':
                     piece = self.board.findKing(self.turn)
                     square = ('O','O','O')
-
-                #print((piece,square))
                 return (piece, square)
             else:
                 return notation
@@ -1080,8 +1047,7 @@ class Game():
         p = None
         self.cboard = copy.deepcopy(self.board)
         mv = self.board.getAllMoves(self.ccolor)
-        for i in mv: # (piece, square)
-            
+        for i in mv: # (piece, square)     
             #------------- BEFORE MOVE -----------------
             score = 0
             piece = i[0]
@@ -1103,7 +1069,6 @@ class Game():
                     score -= 1.0
             else:
                 ydist = 0
-                #if self.cboard.isChecked(self.ccolor):
                 if self.cboard.isAttacked(l, self.pcolor):
                     score -= 0.70
                 if type(square[0]) is str:
@@ -1121,9 +1086,6 @@ class Game():
             score += self.getScore(self.cboard, self.ccolor)
             
             #------------- AFTER MOVE -----------------'''
-            
-            #if self.cboard.findKing(self.ccolor).hasmoved == 0 and self.cboard.isAttacked((2,self.cside+self.cdir),self.pcolor):
-            #    score -= 1.35
                 
             if len(self.notation) < 20: #develop minor pieces in opening
                 if 1 < piece.value < 5:
@@ -1175,7 +1137,7 @@ class Game():
                 if r == 0:
                     m = [max(m[0],score), piece,square]
                 
-            print(l, square, score)
+            #print(l, square, score)
             
         # ------- AFTER SELECTING "BEST" MOVE ------------
         bestpiece = m[1]
@@ -1183,12 +1145,12 @@ class Game():
         if type(bestsquare[0]) is not str:
             if len(bestsquare) == 2:
                 x = bestpiece.getNotation()+self.convertSqtoPos(bestpiece.getPosition())[0] + self.convertSqtoPos(bestsquare)
-                print(bestpiece,x)
+                print(x)
                 self.move(x)
             elif len(bestsquare) == 3:
                 print("promotion: ", bestpiece.getNotation()) 
                 y = bestpiece.getNotation()+self.convertSqtoPos(bestsquare[0:2])+"="+bestsquare[2]
-                print(bestpiece,y)
+                print(y)
                 self.move(y)
         elif len(bestsquare) == 4:
             print('ep')
@@ -1214,5 +1176,4 @@ class Game():
     def getCColor(self):
         return self.ccolor
                     
-#cProfile.run('Game()')
 Game()
