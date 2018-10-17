@@ -1,6 +1,15 @@
 # Chess
 A chess game with a simple AI implementation
 <br><br>
+<b>Versions</b>
+<br><br>
+There are two versions of the chess game. 
+<br>
+<ul>
+  <li>The first, located in <b>Chess.py</b>, evaluates positions without looking ahead through various branches of the game tree.</li>
+  <li>The second version, located in <b>AlphaBeta.py</b>, implements a Minimax algorithm with Alpha-Beta pruning in order to look ahead multiple moves. However, it is currently rather slow in comparison to the first version.</li>
+</ul>
+<br><br>
 <b>Structure</b>
 <br>
 <ul>
@@ -10,4 +19,4 @@ A chess game with a simple AI implementation
 </ul>
 <b>Instructions</b>
 <br>
-To play, see the instructions in the source code of Chess.py.
+To play, see the instructions in the source code of Chess.py or AlphaBeta.py.
