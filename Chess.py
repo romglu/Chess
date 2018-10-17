@@ -2,10 +2,7 @@
 # for notation, use P,N,B,R,Q,K followed by square, i.e. "Pe4", "Rd5", even if capture
 # en passant: "ep", castle: "oo", "o-o-o", promotion: "Pe8=Q", do NOT notate check/mate with + and #
 
-import copy
-import random
-import math
-import fileinput
+import copy, random
 
 class Piece():
     def __init__(self, color, pos, board):
